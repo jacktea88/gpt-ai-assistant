@@ -13,6 +13,7 @@ export const buildCommandHelp = (features = config) => {
   if (features.ENABLE_VISION) lines.push(t('__TEXT_COMMAND_HELP_VISION'));
   if (features.ENABLE_TRANSCRIPTION) lines.push(t('__TEXT_COMMAND_HELP_VOICE'));
   if (features.ENABLE_SCHEDULE) lines.push(t('__TEXT_COMMAND_HELP_SCHEDULE'));
+  if (features.ENABLE_NOTES) lines.push(t('__TEXT_COMMAND_HELP_NOTES'));
   if (features.ENABLE_TASKS) lines.push(t('__TEXT_COMMAND_HELP_TASKS'));
   if (features.ENABLE_REMINDERS) lines.push(t('__TEXT_COMMAND_HELP_REMINDERS'));
   if (features.ENABLE_WEATHER) lines.push(t('__TEXT_COMMAND_HELP_WEATHER'));

@@ -37,6 +37,7 @@ const config = Object.freeze({
   GROUP_REPLY_REQUIRES_MENTION: env.GROUP_REPLY_REQUIRES_MENTION === 'true' || false,
   ENABLE_SCHEDULE: env.ENABLE_SCHEDULE === 'true' || false,
   SCHEDULE_DEFAULT_TIMEZONE: env.SCHEDULE_DEFAULT_TIMEZONE || 'Asia/Taipei',
+  ENABLE_NOTES: env.ENABLE_NOTES === 'true' || false,
   ENABLE_TASKS: env.ENABLE_TASKS === 'true' || false,
   TASK_LIST_LIMIT: Math.min(Math.max(
     Number.isFinite(Number(env.TASK_LIST_LIMIT)) ? Math.trunc(Number(env.TASK_LIST_LIMIT)) : 6,

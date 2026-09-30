@@ -2,6 +2,74 @@
 
 維護者與 AI 接手用的單一開發文件：架構、本機指令、環境變數、部署。使用者導向說明在根目錄 [`README.md`](../README.md)；決策紀錄在 [`DECISIONS.md`](DECISIONS.md)；Phase 狀態與範疇在 [`ROADMAP.md`](ROADMAP.md)。
 
+## 新維護者起手式
+
+若你是第一次接手這個 repo，不要先橫向掃完整個 `app/`、`services/`、`repositories/`。先用一條可執行的 runtime 主幹建立心智模型，再挑一個低風險切片開始改。
+
+### 先建立主流程心智模型
+
+建議按這個順序讀：
+
+1. `api/index.js`：看 LINE webhook 如何先 `ensureRuntimeReady()`、再 `enqueueEvents()`，並在回 `200` 後用 `runAfterResponse()` 觸發 `drainQueue()`。
+2. `app/webhook.js`：看每個 LINE event 如何要求 `webhookEventId`，並轉成 durable job。
+3. `repositories/jobs.js`：看 queue 的資料契約：`enqueueJob()`、`claimNextJob()`、`saveJobResult()`、`markJobDelivered()`、`retryOrFailJob()`。
+4. `services/worker.js`：先讀 `drainQueue()`，再讀 `handleLineEvent()`；這裡定義了「AI 至多執行一次、送達可重試」的核心語意。
+5. `app/app.js`：看 `prepareEvents()` 如何建立 context 並依序跑 handler pipeline。
+6. `app/context.js`、`app/handlers/talk.js`、`services/openai.js`、`utils/reply-message.js`：補齊一般聊天事件如何產生回覆並送回 LINE。
+
+把這條路讀通後，至少要能用自己的話解釋這個順序：
+
+```text
+webhook 進入
+→ ensureRuntimeReady
+→ enqueueEvents
+→ enqueueJob
+→ drainQueue
+→ claimNextJob
+→ handleLineEvent
+→ prepareEvents
+→ handler pipeline
+→ saveJobResult
+→ replyMessage
+→ markJobDelivered
+```
+
+### 哪些地方先不要亂動
+
+第一次接手時，先把下面幾塊當成高風險區：
+
+- `services/worker.js` 與 `repositories/jobs.js` 之間的 checkpoint / retry contract
+- `db/migrations/` 的已發布 migration 語意
+- Google Calendar / Tasks inbound sync
+- reminder scheduling、cron 與 queue payload schema
+- reply / push 策略與 fail-closed runtime preflight
+
+這些地方不是不能改，而是要先讀懂 worker 與 repository contract，再碰比較安全。
+
+### 第一個實作切片建議
+
+第一個改動建議選擇簡單 handler、文案、feature flag 或相鄰測試，不要一開始就進 schedule、tasks、Google sync 或 reminders。適合當樣板的切片：
+
+- `app/handlers/version.js`
+- `app/handlers/deploy.js`
+- `tests/config.test.js`
+- `config/index.js` 中單一 feature flag 或預設值
+
+做這種小切片時，先看 handler，再看它使用的 service / util，最後找相鄰測試。這樣能快速熟悉本 repo 的 control flow、context 寫法與驗證方式，而不會一次踩進多個資料一致性邊界。
+
+### 本機開發起手驗證
+
+開始實作前，先確認 Node.js 版本符合 `package.json` 的 `>=24.0.0`，再至少跑：
+
+```bash
+npm ci
+npm run test:module-load
+npx eslint .
+npm test
+```
+
+若只改單一 handler 或設定，優先跑最相鄰的測試；若改 queue、repository、runtime 或 migration，再擴大到完整 lint / test 與對應資料流驗證。
+
 ## 架構
 
 ```text
@@ -117,6 +185,7 @@ npm run dev           # nodemon api/index.js，本機起 Express
 | `GROUP_REPLY_REQUIRES_MENTION` | 群組回覆政策，預設 `false`（維持原行為：群組啟用自動回覆後回應所有訊息）。設為 `true` 時，群組中必須以指令或 bot 名稱點名才回應一般訊息，減少群組噪音。實作見 `app/handlers/talk.js`。 |
 | `ENABLE_URL_SUMMARY` | 網址摘要，預設 `false`（關閉）。設為 `true` 時，若對話訊息含 http(s) 網址，會經 SSRF-safe 抓取（`utils/fetch-url.js` → `utils/assert-safe-url.js` → `utils/is-private-ip.js`）取得網頁純文字，作為對話上下文交給模型摘要/回應。相關限制：`URL_FETCH_TIMEOUT`（毫秒，預設同 `APP_API_TIMEOUT`）、`URL_FETCH_MAX_BYTES`（預設 1000000）、`URL_FETCH_MAX_CHARS`（預設 5000）。⚠️ 見下方安全說明後再決定是否開啟。 |
 | `ENABLE_SCHEDULE` | 行程功能，預設 `false`，須先套用 `0001`–`0006`。明確指令或日期開頭敘述會進草稿；模糊日期／時間會以結構化 workflow 追問。另提供 `我的行程`、`修改行程`、完成、刪除、同步失敗處理與 `設定時區 <IANA>`。相關：`SCHEDULE_DEFAULT_TIMEZONE`、`SCHEDULE_MAX_TOKENS`、`SCHEDULE_CONFIRM_TTL`。 |
+| `ENABLE_NOTES` | 輕量筆記功能，預設 `false`，須先套用 `0021_notes.sql` 並設好 `DATABASE_URL`。提供 `新增筆記 <內容>`、`我的筆記`、`刪筆記` 三個基本指令；用途是持久化短文字紀錄，不含提醒、Google 同步或文件上傳流程。 |
 | `ENABLE_TASKS` | 任務／待辦，預設 `false`，須先套用 `0007`＋`0008` 並設好 `DATABASE_URL`。任務獨立存於 Supabase `tasks` 表，不是 Google Calendar event；是否另同步 Google Tasks 由 `ENABLE_GOOGLE_TASKS` 控制，成功訊息會明示目前資料邊界。`新增任務 <文字>` 以 OpenAI structured output 解析期限與優先度，再由程式依使用者時區校正相對日期，正則提取並正規化 `#標籤`；`我的任務` 支援今天／今日、明天／明日、本週／本周、下週／下周、逾期／已完成／標籤篩選。各日期範圍使用個人時區的半開起訖，不混入其他日期；一週固定週一開始、週日結束。新增語句只有「本週／這週」而沒有星期幾時固定為本週日 09:00，「下週」固定為下週日 09:00。未知列表參數 fail closed，回覆可用篩選而不查詢全部。`TASK_LIST_LIMIT` 控制每頁 `1`–`6` 筆；完成、刪除、重開皆冪等且 owner-scoped。title／期限修改走刪除重建。 |
 | `ENABLE_REMINDERS` | 行程與有期限任務的 LINE 提醒，預設 `false`。開啟前須套用 `0005_reminders_and_completion.sql`（偏好指令另需 `0009_reminder_prefs.sql`），設定 `REMINDER_CRON_SECRET`，並以 `npm run db:configure-reminders` 建立每分鐘 Supabase Cron。`REMINDER_OFFSETS` 預設 `1440`（一天前），另固定保留到點提醒；設空字串可只保留到點。`REMINDER_WORKER_MAX_JOBS` 預設 `20`；`REMINDER_WORKER_TIME_BUDGET_MS` 預設 `45000`。**Delivery 策略**：暫停期間跳過不補發；超過 `REMINDER_STALE_MINUTES` 跳過；安靜時段延後。提前量會套到每個週期 occurrence 與有期限任務；完成、刪除、重開或 mapped Google inbound 變更會在 mutation transaction 內取消／重排。每分鐘 Cron 另會補排尚無 current-version job 的既有未來 due tasks；task job 以 `taskVersion` fencing 擋住完成後快速重開時仍 processing 的舊 job。 |
 | `ENABLE_GOOGLE_CALENDAR` | Google Calendar 行程操作，預設 `false`。開啟前須套用 `0004_google_calendar.sql`；修改 workflow 另需 `0006_schedule_workflows.sql`。設好 OAuth env 與每分鐘 Cron 後，新增、`修改行程`、`我的行程`、完成與刪除以 Google Calendar 為操作面。`連結 Google 行事曆` 走 PKCE OAuth；`解除連結 Google 行事曆` 向 Google 撤銷 token（`OAuth2Client.revokeCredentials`）並刪除本地 `calendar_accounts` envelope——撤銷失敗（token 已過期／已撤銷）不阻擋本地刪除。 |

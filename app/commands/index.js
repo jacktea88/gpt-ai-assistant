@@ -14,6 +14,9 @@ import COMMAND_BOT_DRAW from './bot-draw.js';
 import COMMAND_BOT_FORGET from './bot-forget.js';
 import COMMAND_BOT_GOOGLE_CALENDAR from './bot-google-calendar.js';
 import COMMAND_BOT_GOOGLE_UNLINK from './bot-google-unlink.js';
+import COMMAND_BOT_NOTE from './bot-note.js';
+import COMMAND_BOT_NOTE_DELETE from './bot-note-delete.js';
+import COMMAND_BOT_NOTE_LIST from './bot-note-list.js';
 import COMMAND_BOT_RETRY from './bot-retry.js';
 import COMMAND_BOT_SEARCH from './bot-search.js';
 import COMMAND_BOT_TASK from './bot-task.js';
@@ -75,6 +78,9 @@ export const ALL_COMMANDS = [
   COMMAND_BOT_FORGET,
   COMMAND_BOT_GOOGLE_CALENDAR,
   COMMAND_BOT_GOOGLE_UNLINK,
+  COMMAND_BOT_NOTE,
+  COMMAND_BOT_NOTE_DELETE,
+  COMMAND_BOT_NOTE_LIST,
   COMMAND_BOT_RETRY,
   COMMAND_BOT_SEARCH,
   COMMAND_BOT_QUIET_HOURS,
@@ -159,6 +165,9 @@ export {
   COMMAND_BOT_FORGET,
   COMMAND_BOT_GOOGLE_CALENDAR,
   COMMAND_BOT_GOOGLE_UNLINK,
+  COMMAND_BOT_NOTE,
+  COMMAND_BOT_NOTE_DELETE,
+  COMMAND_BOT_NOTE_LIST,
   COMMAND_BOT_RETRY,
   COMMAND_BOT_SEARCH,
   COMMAND_BOT_QUIET_HOURS,

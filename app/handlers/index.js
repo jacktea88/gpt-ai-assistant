@@ -7,6 +7,7 @@ import docHandler from './doc.js';
 import drawHandler from './draw.js';
 import forgetHandler from './forget.js';
 import enquireHandler from './enquire.js';
+import notesHandler from './notes.js';
 import reportHandler from './report.js';
 import retryHandler from './retry.js';
 import remindersHandler from './reminders.js';
@@ -27,6 +28,7 @@ export {
   drawHandler,
   forgetHandler,
   enquireHandler,
+  notesHandler,
   reportHandler,
   retryHandler,
   remindersHandler,

@@ -9,6 +9,7 @@ import {
   drawHandler,
   forgetHandler,
   enquireHandler,
+  notesHandler,
   reportHandler,
   retryHandler,
   remindersHandler,
@@ -41,6 +42,7 @@ const handleContext = async (context) => (
   || searchHandler(context)
   || versionHandler(context)
   || weatherHandler(context)
+  || await notesHandler(context)
   || await remindersHandler(context)
   || await taskHandler(context)
   || await scheduleHandler(context)
